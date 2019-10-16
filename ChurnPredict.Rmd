@@ -1,0 +1,250 @@
+---
+title: "ChurnPrediction"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+1)Importing all the libraries and the csv file
+
+```{r Churn}
+library(plyr)
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(forecast)
+library(data.table)
+library(class)
+library(rsample)
+library(leaps)
+library(ROCR)
+library(pROC)
+churn <- read.csv('Churn.csv')
+```
+
+
+2)Omit all the rows with null values
+
+```{r Omit Null Values}
+churn<-na.omit(churn)
+```
+
+3) Replace  no Internet service with No for certain columns ( They mean the same)
+
+```{r Correcting some data}
+churn$OnlineSecurity<- as.factor(mapvalues(churn$OnlineSecurity,"No internet service", "No"))
+churn$OnlineBackup<- as.factor(mapvalues(churn$OnlineBackup,"No internet service", "No"))
+churn$DeviceProtection<- as.factor(mapvalues(churn$DeviceProtection,"No internet service", "No"))
+churn$TechSupport<- as.factor(mapvalues(churn$TechSupport,"No internet service", "No"))
+churn$StreamingTV<- as.factor(mapvalues(churn$StreamingTV,"No internet service", "No"))
+churn$StreamingMovies<- as.factor(mapvalues(churn$StreamingMovies,"No internet service", "No"))
+churn$MultipleLines<- as.factor(mapvalues(churn$MultipleLines,"No phone service", "No")) 
+churn$SeniorCitizen<- as.factor(mapvalues(churn$SeniorCitizen,c("1","0"),c("Yes","No")))
+```
+
+4) Creating groups for tenure so that they can have proper categories
+```{r Tenure_Group}
+ten.grp <- function(tenure){
+    if (tenure >= 0 & tenure <= 12){
+        return('0-12 Month')
+    }else if(tenure > 12 & tenure <= 24){
+        return('12-24 Month')
+    }else if (tenure > 24 & tenure <= 48){
+        return('24-48 Month')
+    }else if (tenure > 48 & tenure <=60){
+        return('48-60 Month')
+    }else if (tenure > 60){
+        return('> 60 Month')
+    }
+}
+
+
+churn$ten_grp <- sapply(churn$tenure,ten.grp)
+churn$ten_grp<- as.factor(churn$ten_grp)
+```
+
+
+
+```{r Plotting bar chartd for all categorical Variable}
+
+x<- sapply(churn,is.numeric)
+x
+
+gender.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$gender, fill=churn$Churn))
+gender.plot #Not important
+
+SeniorCitizen.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$SeniorCitizen, fill=churn$Churn))
+SeniorCitizen.plot  #Important
+
+Partner.plot<- ggplot(churn)+
+                geom_bar(aes(x=churn$Partner, fill=churn$Churn))
+Partner.plot  # Cant say
+
+
+Dependents.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$Dependents, fill=churn$Churn))
+Dependents.plot  #Looks imp
+
+PhoneService.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PhoneService, fill=churn$Churn))
+
+PhoneService.plot  #cant say
+
+MultipleLines.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$MultipleLines, fill=churn$Churn))
+MultipleLines.plot # Looks imp
+
+InternetService.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$InternetService, fill=churn$Churn))
+InternetService.plot  #important
+
+
+OnlineSecurity.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$OnlineSecurity, fill=churn$Churn))
+
+OnlineSecurity.plot  #Important
+
+gender.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$OnlineBackup, fill=churn$Churn))
+gender.plot  #Important
+
+DeviceProtection.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$DeviceProtection, fill=churn$Churn))
+
+TechSupport.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$TechSupport, fill=churn$Churn))
+DeviceProtection.plot
+TechSupport.plot# Both important
+
+StreamingTV.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$StreamingTV, fill=churn$Churn))
+StreamingTV.plot  #imp
+
+
+StreamingMovies.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$StreamingMovies, fill=churn$Churn))
+StreamingMovies.plot  #imp
+
+
+Contract.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$Contract, fill=churn$Churn))
+Contract.plot #imp
+
+
+PaperlessBilling.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PaperlessBilling, fill=churn$Churn))
+PaperlessBilling.plot
+
+
+PaymentMethod.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PaymentMethod, fill=churn$Churn))
+PaymentMethod.plot #so so
+
+
+ten_grp.plot<- ggplot(churn)+
+                geom_bar(aes(x=churn$ten_grp, fill=churn$Churn))
+ten_grp.plot     #imp
+
+
+#So we remove gender.
+#We can also remove tenure and customerId.
+
+churn<- churn[c(1:600),-2]
+churn$tenure<- NULL
+churn$customerID<- NULL
+dim(churn)
+
+
+
+```
+
+
+```{r Churn}
+split<- initial_split(churn, 0.70)
+trainingData<- training(split)
+testData<- testing(split)
+dim(trainingData)
+dim(testData)
+```
+
+
+1)Logistic Regression
+
+```{r Logistic}
+LogModel <- glm(Churn ~ .,family=binomial(link="logit"),data=trainingData)
+
+summary(LogModel)
+
+#Dependants Contract and Total_Charges come out to be significant
+
+ predictedChurn<- predict(LogModel,testData, type='response')
+
+ predictedChurnValues<- as.factor(ifelse(predictedChurn>0.5,"1","0"))
+
+ testData$Churn<- mapvalues(testData$Churn,c("Yes","No"),c("1","0"))
+ 
+ confusionMatrix(predictedChurnValues,testData$Churn) #77.78% accuracy
+ 
+ dim(predictedChurn)
+ predictedChurn
+ pred<- prediction(predictedChurn,testData$Churn)
+ perf<- performance(pred,"tpr","fpr")
+ plot(perf)
+ auc(testData$Churn,predictedChurn)
+ 
+ confint(LogModel)
+ oddsRatio=exp(coef(LogModel))
+ 
+ 
+ 
+ 
+ 
+```
+
+
+2) DecisionTrees
+
+```{r Churn}
+#tree <- ctree(Churn~Dependents+Contract+TotalCharges, trainingData)
+tree <- ctree(Churn~., trainingData)
+summary(tree)
+pred.tree<- predict(tree,testData)
+pred.tree.values<- mapvalues(pred.tree,c("Yes","No"),c("1","0"))
+
+pred.tree
+tree.conf.mat<-table(Prediction=pred.tree.values,Actual=testData$Churn)
+acc.pred.tree<- sum(diag(tree.conf.mat))/sum(tree.conf.mat)
+acc.pred.tree #78%
+
+# Can I create roc curve for this?
+
+
+```
+
+
+3) RandomForest
+
+```{r Churn}
+rfModel <- randomForest(Churn ~ ., data = trainingData, importance=TRUE)
+summary(rfModel)
+pred_rf <- predict(rfModel, testData)
+pred_rf<- mapvalues(pred_rf,c("Yes","No"),c("1","0"))
+pred_rf
+#confusionMatrix(testData$Churn,pred_rf)[nOT WORKING]
+rf.conf.mat<-table(Predicted=pred_rf, Actual=testData$Churn)
+rf.conf.mat
+rf.acc<- sum(diag(rf.conf.mat))/sum(rf.conf.mat)
+rf.acc # 80%
+
+
+
+```
+
+
+
+
