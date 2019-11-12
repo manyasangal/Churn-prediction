@@ -1,0 +1,371 @@
+---
+title: "ChurnPrediction"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+1)Importing all the libraries and the csv file
+
+
+```{r Churn}
+library(plyr)
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(forecast)
+library(data.table)
+library(class)
+library(rsample)
+library(leaps)
+library(ROCR)
+library(pROC)
+library(rpart)
+library(ggplot2)
+
+churn <- read.csv('Churn.csv')
+```
+
+
+2)Omit all the rows with null values
+
+
+```{r Omit Null Values}
+churn<-na.omit(churn)
+```
+
+3)DATA CLEANING
+------------------
+
+3.1) Replace  no Internet service with No for certain columns. This is part of Data Cleaning Process.
+
+
+```{r Correcting some data}
+churn$OnlineSecurity<- as.factor(mapvalues(churn$OnlineSecurity,"No internet service", "No"))
+churn$OnlineBackup<- as.factor(mapvalues(churn$OnlineBackup,"No internet service", "No"))
+churn$DeviceProtection<- as.factor(mapvalues(churn$DeviceProtection,"No internet service", "No"))
+churn$TechSupport<- as.factor(mapvalues(churn$TechSupport,"No internet service", "No"))
+churn$StreamingTV<- as.factor(mapvalues(churn$StreamingTV,"No internet service", "No"))
+churn$StreamingMovies<- as.factor(mapvalues(churn$StreamingMovies,"No internet service", "No"))
+churn$MultipleLines<- as.factor(mapvalues(churn$MultipleLines,"No phone service", "No")) 
+churn$SeniorCitizen<- as.factor(mapvalues(churn$SeniorCitizen,c("1","0"),c("Yes","No")))
+```
+
+
+3.2) Creating groups for tenure so that they can have proper categories. This is also a part of Data Processing.
+
+
+```{r Tenure_Group}
+ten.grp <- function(tenure){
+    if (tenure >= 0 & tenure <= 12){
+        return('0-12 Month')
+    }else if(tenure > 12 & tenure <= 24){
+        return('12-24 Month')
+    }else if (tenure > 24 & tenure <= 48){
+        return('24-48 Month')
+    }else if (tenure > 48 & tenure <=60){
+        return('48-60 Month')
+    }else if (tenure > 60){
+        return('> 60 Month')
+    }
+}
+churn$ten_grp <- sapply(churn$tenure,ten.grp)
+churn$ten_grp<- as.factor(churn$ten_grp)
+
+
+```
+
+
+4) Now I start analysing my data.
+
+5) I create bar plots for all the categorical variables and see the distribution    of Churn and Non-Churn across each category.
+
+6) After plotting the graphs :
+   6.1)For 'Gender', almost equal proportion of people churn from both Male and       Female. Which means it is not significant in deciding the Churn.
+   6.2) For rest all the variables the difference in proportions across the          categories look significant. So we will keep them.
+   
+
+```{r Plotting bar chartd for all categorical Variable}
+
+x<- sapply(churn,is.numeric)
+
+gender.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$gender, fill=churn$Churn))
+gender.plot 
+
+SeniorCitizen.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$SeniorCitizen, fill=churn$Churn))
+SeniorCitizen.plot  #Important
+
+Partner.plot<- ggplot(churn)+
+                geom_bar(aes(x=churn$Partner, fill=churn$Churn))
+Partner.plot  # Cant say
+
+
+Dependents.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$Dependents, fill=churn$Churn))
+Dependents.plot  #Looks imp
+
+PhoneService.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PhoneService, fill=churn$Churn))
+
+PhoneService.plot  #cant say
+
+MultipleLines.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$MultipleLines, fill=churn$Churn))
+MultipleLines.plot # Looks imp
+
+InternetService.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$InternetService, fill=churn$Churn))
+InternetService.plot  #important
+
+
+OnlineSecurity.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$OnlineSecurity, fill=churn$Churn))
+
+OnlineSecurity.plot  #Important
+
+gender.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$OnlineBackup, fill=churn$Churn))
+gender.plot  #Important
+
+DeviceProtection.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$DeviceProtection, fill=churn$Churn))
+
+TechSupport.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$TechSupport, fill=churn$Churn))
+DeviceProtection.plot
+TechSupport.plot# Both important
+
+StreamingTV.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$StreamingTV, fill=churn$Churn))
+StreamingTV.plot  #imp
+
+
+StreamingMovies.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$StreamingMovies, fill=churn$Churn))
+StreamingMovies.plot  #imp
+
+
+Contract.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$Contract, fill=churn$Churn))
+Contract.plot #imp
+
+
+PaperlessBilling.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PaperlessBilling, fill=churn$Churn))
+PaperlessBilling.plot
+
+
+PaymentMethod.plot<- ggplot(churn)+
+              geom_bar(aes(x=churn$PaymentMethod, fill=churn$Churn))
+PaymentMethod.plot #so so
+
+
+ten_grp.plot<- ggplot(churn)+
+                geom_bar(aes(x=churn$ten_grp, fill=churn$Churn))
+ten_grp.plot     #imp
+
+
+#So we remove gender.
+#We can also remove tenure and customerId.
+
+churn<- churn[c(1:600),-2]
+churn$tenure<- NULL
+churn$customerID<- NULL
+dim(churn)
+
+
+
+```
+ 
+ 
+ 7)Split the data into Test Data and Training Data.I took 70% of observations in    my Test Data and 30% in Training Data.
+
+
+```{r Data Split}
+set.seed(200)
+split<- initial_split(churn, 0.70)
+trainingData<- training(split)
+testData<- testing(split)
+```
+
+ 8)Now we start applying different algorithms to check which Model works best in   predicting.
+
+ 9)We start with Logistic Regression
+   
+   9.1)Predict the probabilities using Logistic Regression. I have taken a             threshold of 0.5. If prob> 0.5, The Customer will Churn 
+
+```{r Logistic Regression - Prediction}
+LogModel <- glm(Churn ~ .,family=binomial(link="logit"),data=trainingData)
+predictedChurn<- predict(LogModel,testData, type='response')
+predictedChurnValues<- as.factor(ifelse(predictedChurn>0.5,"1","0"))
+```
+
+
+   9.2)After predicting the values, create a Confusion Matrix to check the             misclassification cost and accuracy.
+
+```{r Logistic Regression Evaluation}
+
+log.table<- table(Predicted=predictedChurnValues,Actual=testData$Churn)
+log.table
+misClass.log<- log.table[1,2]
+misClass.log
+```
+
+    9.3) There are 21 customers who actually Churned, but were predicted to be           Non - churning. This category might prove very expensive to the                 business, as the company will not take retaining efforts for these 21           misclassified customer thinking that they are not going to churn.
+    9.4) So we should build such a model such that this misclassification is             minimum.
+    9.5) We further analyse by calculating the accuracy in Logistic Model.
+
+
+```{r Logistic Regression Accuracy}
+
+log.acc<- sum(diag(log.table))/sum(log.table)
+log.acc 
+
+```
+ 
+    9.6) We get an accuracy of 80.5%.
+    9.7) All these statistics will be used for comaprison between models.
+    9.8) Then we build ROC curve for Logistic Model
+    
+```{r Logistic Regression ROC Curve}
+
+ pred<- prediction(predictedChurn,testData$Churn)
+ perf<- performance(pred,"tpr","fpr")
+ plot(perf)
+ auc(testData$Churn,predictedChurn) #84.63
+ 
+ confint(LogModel)
+ oddsRatio=exp(coef(LogModel))
+ oddsRatio
+```
+
+    9.9) Area Under the Curve comes out to be 84.63
+ 
+  10) After doing full analysis of Logistic Regression, its time to move to next      algorithm i.e. Decision Tress
+     10.1) Similar to Logistic, we predict the probabilities.
+
+```{r Decision Tree - Prediction}
+tree<- train(Churn~.,method='rpart',data=trainingData)
+pred.tree<- predict(tree,testData,type = "prob")
+pred.tree
+pred.tree.yes<-pred.tree[,2]
+pred.tree.diab<-ifelse(pred.tree.yes>0.5,1,0) 
+```
+
+
+    10.2) Then we go on to check the misclassification cost and accuracy as in            Logistic. 
+    
+    
+```{r Decision Tree accuracy}
+
+tree.conf.mat<-table(Prediction=pred.tree.diab,Actual=testData$Churn)
+tree.conf.mat
+misClass.dt<- tree.conf.mat[1,2]
+misClass.dt# actual mein churn karne vale the par predict kiya ke nai karenge 
+
+acc.pred.tree<- sum(diag(tree.conf.mat))/sum(tree.conf.mat)
+acc.pred.tree #80.5%
+```
+     
+      10.3)There are 28 customers who actually Churned, but were predicted to be           Non - churning. This misclassification is much higher than Logistic.
+      10.4)Accuracy is around 80.5%. This is same as Logistic. 
+      
+    
+```{r Decision Tree- ROC Curve}
+
+ pred.dt<- prediction(pred.tree.yes,testData$Churn)
+ perf.dt<- performance(pred.dt,"tpr","fpr")
+ plot(perf.dt)
+ auc(testData$Churn,pred.tree.yes)#71.88
+
+
+```
+
+      10.5) Area under the curve is 71.88
+    
+ 11)Now we move to Random Forest and re follow similar steps.
+       11.1) As usual, we predict the probabilities.
+    
+
+```{r RandomForest prediction}
+rfModel <- randomForest(Churn ~ ., data = trainingData, importance=TRUE)
+summary(rfModel)
+pred_rf <- predict(rfModel, testData,type="prob")
+pred_rf.yes<-pred_rf[,2]
+pred_rf.diab<- ifelse(pred_rf.yes>0.5,1,0)
+```
+
+       11.2) Then we go on to check the misclassification cost and accuracy. 
+
+```{r RandomForest Accuracy}
+rf.conf.mat<-table(Predicted=pred_rf.diab, Actual=testData$Churn)
+rf.conf.mat
+misClass.rf<- rf.conf.mat[1,2]
+misClass.rf#
+
+rf.acc<- sum(diag(rf.conf.mat))/sum(rf.conf.mat)
+rf.acc 
+```
+
+       11.3)There are 26 customers who actually Churned, but were predicted                 to be Non - churning. This misclassification is much higher than                Logistic.
+       11.4)Accuracy is around 80%. 
+
+
+```{r RandomForest ROC Curve}
+pred.rf<- prediction(pred_rf.yes,testData$Churn)
+ perf.rf<- performance(pred.rf,"tpr","fpr")
+ plot(perf.rf)
+ auc(testData$Churn,pred_rf.yes)
+
+```
+
+        11.5) Area under the curve is 82.99%
+        
+```{ All Three Models}
+
+Algo<- c("Logistic","Decision Tree","Random Forest")
+misClass<- c(misClass.log,misClass.dt,misClass.rf)
+acc<- c(Loogistic=log.acc,DecisionTree=acc.pred.tree,RandomForest=rf.acc)
+misClass.df<- data.frame(Algo,misClass,acc)
+misClass.df
+
+
+
+x<-ggplot(misClass.df)+geom_bar(aes(x=Algo,y=misClass),stat="identity", fill='orange')+
+geom_text(aes(x = Algo, y = misClass,label=misClass))
+x
+
+barplot()
+ 
+
+
+y<-ggplot(misClass.df,)+
+geom_bar(aes(x=Algo,y=acc),stat="identity", fill='orange')+
+ geom_text(aes(x = Algo, y = acc,label=acc*100))
+ y
+ 
+
+
+misClass
+acc
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
