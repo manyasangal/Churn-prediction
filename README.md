@@ -11,8 +11,8 @@ Having worked with several telecom clients in the past, I noticed that Customer 
 3. DATA
 
 The data contains following 21 fields:
-•	CustomerID
-•	Gender : female, male
+1)	CustomerID
+2) Gender : female, male
 •	SeniorCitizen  : Whether the customer is a senior citizen or not (1, 0)
 •	Partner : Whether the customer has a partner or not (Yes, No)
 •	Dependents : Whether the customer has dependents or not (Yes, No)
