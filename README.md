@@ -1,14 +1,14 @@
 # Churn-prediction
 
-1.INTRODUCTION
+## 1. INTRODUCTION
 
 For any service company that bills on a recurring basis, a key variable is the Churn rate. Customer churn occurs when customers or subscribers stop doing business with a company or service, also known as customer attrition. It is also referred as loss of clients or customers. I have used Machine Learning to predict Churn Rate using various algorithm for telecom industry. It can help the company develop Business Strategies to avoid/reduce the loss of business.
 
-2. MOTIVATION
+## 2. MOTIVATION
 
 Having worked with several telecom clients in the past, I noticed that Customer Churn is the greatest threat to a  telecom’s business. If a telecom provider is able to predict the possibility of a customer churning from their subscription, it is possible to retain the customer through certain offers. This can save telecom company a lot of business.
 
-3. DATA
+## 3. DATA
 
 The data contains following 21 fields:
 1. CustomerID
@@ -33,15 +33,15 @@ The data contains following 21 fields:
 20. TotalCharges : The total amount charged to the customer — numeric
 21. Churn : Whether the customer churned or not (Yes or No). It is our target variable.
 
-STEPS:
+## 4. STEPS:
 
-1)	Data Cleaning  :
+### 1)	Data Cleaning  :
 •	 For example “No internet Service” was replaced by “No” to make the data uniform.
 •	 All the missing values were removed. 
 •	 Minimum tenure is 0 months and maximum is 82 months. So, I created 5 tenure groups:
    0-12 months, 12-24 months, 24-48 months, 48-60 months and >60 months
 
-2)	Data Analysis and Visualisation :
+### 2)	Data Analysis and Visualisation :
 •	 For analyzing the data, I create visuals like Bar plots and various other graphs using ggplot in R for various categorical variables. 
 •	 This helps me visualize the distribution of Churn and Non Churn for each category. 
 •	 It can let me decide various insignificant variables and I can eliminate those fields from data before moving ahead with Machine     Learning algorithms (Variable Reduction)
