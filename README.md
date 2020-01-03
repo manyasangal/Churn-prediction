@@ -35,13 +35,13 @@ The data contains following 21 fields:
 
 ## 4. STEPS:
 
-### 1)	Data Cleaning  :
+1)	Data Cleaning  :
 •	 For example “No internet Service” was replaced by “No” to make the data uniform.
 •	 All the missing values were removed. 
 •	 Minimum tenure is 0 months and maximum is 82 months. So, I created 5 tenure groups:
    0-12 months, 12-24 months, 24-48 months, 48-60 months and >60 months
 
-### 2)	Data Analysis and Visualisation :
+2)	Data Analysis and Visualisation :
 •	 For analyzing the data, I create visuals like Bar plots and various other graphs using ggplot in R for various categorical variables. 
 •	 This helps me visualize the distribution of Churn and Non Churn for each category. 
 •	 It can let me decide various insignificant variables and I can eliminate those fields from data before moving ahead with Machine     Learning algorithms (Variable Reduction)
